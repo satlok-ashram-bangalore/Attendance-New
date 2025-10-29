@@ -1,0 +1,160 @@
+@import 'tailwindcss';
+
+:root {
+  --background: #eef1fa;
+  --foreground: #1a1c2b;
+  --primary: #e68a09;
+  --primary-foreground: #ffffff;
+  --secondary: #dce3f4;
+  --secondary-foreground: #1a1c2b;
+  --muted: #dce3f4;
+  --muted-foreground: #5f6b87;
+  --accent: #c6d4f9;
+  --accent-foreground: #1a1c2b;
+  --card: #ffffff;
+  --card-foreground: #1a1c2b;
+  --popover: #ffffff;
+  --popover-foreground: #1a1c2b;
+  --border: #d2dbe8;
+  --input: #d2dbe8;
+  --geo-map: #000000;
+  --top-loading-bar-color:#FF0000;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-geo-map: var(--geo-map);
+  --color-top-loading-bar-color: var(--top-loading-bar-color);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+[data-theme='dark'] {
+  --background: #0a1414;
+  --foreground: #e6f2f2;
+  --primary: #e68a09;
+  --primary-foreground: #ffffff;
+  --secondary: #1a2e2e;
+  --secondary-foreground: #f0f4f4;
+  --muted: #1a2e2e;
+  --muted-foreground: #8fa7a7;
+  --accent: #2a4040;
+  --accent-foreground: #f0f4f4;
+  --card: #0f1e1e;
+  --card-foreground: #e6f2f2;
+  --popover: #0f1e1e;
+  --popover-foreground: #e6f2f2;
+  --border: #2a4040;
+  --input: #2a4040;
+  --geo-map: #e6f2f2;
+  --top-loading-bar-color: #FF0000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --background: #0a1414;
+    --foreground: #e6f2f2;
+    --primary: #e68a09;
+    --primary-foreground: #ffffff;
+    --secondary: #1a2e2e;
+    --secondary-foreground: #f0f4f4;
+    --muted: #1a2e2e;
+    --muted-foreground: #8fa7a7;
+    --accent: #2a4040;
+    --accent-foreground: #f0f4f4;
+    --card: #0f1e1e;
+    --card-foreground: #e6f2f2;
+    --popover: #0f1e1e;
+    --popover-foreground: #e6f2f2;
+    --border: #2a4040;
+    --input: #2a4040;
+    --geo-map: #343e64;
+    --top-loading-bar-color: #FF0000;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer components {
+  .sidebar-container {
+    @apply h-screen bg-[var(--background)] border-r border-[var(--border)] flex flex-col transition-all duration-300 ease-in-out;
+  }
+
+  .sidebar-header {
+    @apply p-4 border-b border-[var(--border)] flex items-center justify-center;
+  }
+
+  .sidebar-logo {
+    @apply text-[var(--primary)] font-bold text-xl;
+  }
+
+  .sidebar-nav {
+    @apply flex-1 overflow-y-auto py-4 px-3;
+  }
+
+  .sidebar-item {
+    @apply flex items-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] rounded-md mb-1 transition-all duration-200;
+  }
+
+  .sidebar-item-active {
+    @apply text-[var(--foreground)] bg-[var(--accent)] font-medium;
+  }
+
+  .sidebar-item-button {
+    @apply flex items-center w-full px-3 py-2 text-sm rounded-md;
+  }
+
+  .sidebar-item-icon {
+    @apply mr-3 h-5 w-5;
+  }
+
+  .sidebar-dropdown {
+    @apply space-y-1 ml-6 mt-1;
+  }
+
+  .sidebar-dropdown-item {
+    @apply flex items-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] rounded-md transition-all duration-200;
+  }
+
+  .sidebar-dropdown-item-active {
+    @apply text-[var(--foreground)] font-medium;
+  }
+
+  .sidebar-dropdown-button {
+    @apply flex items-center w-full px-3 py-2 text-sm rounded-md;
+  }
+
+  .sidebar-footer {
+    @apply p-4 border-t border-[var(--border)];
+  }
+}
