@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api-client';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useNotification } from '@/context/notification-context';
 
@@ -186,7 +186,7 @@ export default function UserSettingsPage() {
         </Card>
 
         {/* Password Change Card */}
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle>Set Password</CardTitle>
             <CardDescription>{'Set your password for the first time'}</CardDescription>
@@ -241,7 +241,7 @@ export default function UserSettingsPage() {
               </form>
             </CardContent>
           </div>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
