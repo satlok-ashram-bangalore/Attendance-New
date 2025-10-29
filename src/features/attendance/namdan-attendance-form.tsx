@@ -348,7 +348,7 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
               key: 'action',
               header: 'Action',
               align: 'center',
-              render: (row: MemberAttendanceStatus) => {
+              render: (value, row: MemberAttendanceStatus) => {
                 const index = filteredMembers.findIndex(m => m.member.id === row.member.id);
                 return (
                   <div className="flex items-center justify-center gap-2">
