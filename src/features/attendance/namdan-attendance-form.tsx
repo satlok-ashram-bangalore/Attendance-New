@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, User, Phone, Search } from 'lucide-react';
+import { Loader2, User, Phone, Search, Check, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useNotification } from '@/context/notification-context';
 import { Badge } from '@/components/ui/badge';
@@ -17,52 +17,38 @@ interface MemberAttendanceStatus {
   member: IMemberInfoDb;
   attendanceId: string | null;
   isPresent: boolean;
+  state: boolean | null; // true = present, false = absent, null = not marked (no record exists)
   isLoading: boolean;
 }
 
 function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
   const [members, setMembers] = useState<MemberAttendanceStatus[]>([]);
-  const [filteredMembers, setFilteredMembers] = useState<MemberAttendanceStatus[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const notification = useNotification();
 
-  // Fetch namdan members and their attendance status
+  // Search members when query changes
   useEffect(() => {
-    if (selectedDate) {
-      fetchNamdanMembers();
+    if (searchQuery.trim().length === 10 && /^\d{10}$/.test(searchQuery.trim()) && selectedDate) {
+      searchMembers();
+    } else {
+      setMembers([]);
     }
-  }, [selectedDate]);
+  }, [searchQuery, selectedDate]);
 
-  // Filter members based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredMembers(members);
-      return;
-    }
-
-    const query = searchQuery.toLowerCase();
-    const filtered = members.filter((m) => {
-      const name = m.member.name?.toLowerCase() || '';
-      const mobile = m.member.mobile?.toLowerCase() || '';
-      return name.includes(query) || mobile.includes(query);
-    });
-
-    setFilteredMembers(filtered);
-  }, [searchQuery, members]);
-
-  const fetchNamdanMembers = async () => {
-    if (!selectedDate) return;
+  const searchMembers = async () => {
+    if (!selectedDate || !searchQuery.trim()) return;
 
     try {
       setIsLoading(true);
 
-      // Fetch all members with type = 'NAMDAN'
+      // Search members by exact mobile number (10 digits)
       const { data: namdanMembers, error: membersError } = await supabase
         .from('member_info')
         .select('*')
         .eq('type', 'NAMDAN')
+        .eq('mobile', searchQuery.trim())
         .order('name', { ascending: true });
 
       if (membersError) throw membersError;
@@ -94,7 +80,7 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
       const memberIds = namdanMembers.map((m) => m.id);
       const { data: attendanceRecords, error: attendanceError } = await supabase
         .from('namdan_attendance')
-        .select('id, member_id')
+        .select('id, member_id, state')
         .in('member_id', memberIds)
         .eq('namdan_id', centre_id)
         .gte('created_at', startOfDayUTC.toISOString())
@@ -104,47 +90,43 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
 
       // Create attendance status map
       const attendanceMap = new Map(
-        attendanceRecords?.map((record) => [record.member_id, record.id]) || []
+        attendanceRecords?.map((record) => [record.member_id, { id: record.id, state: record.state }]) || []
       );
 
       // Combine members with their attendance status
-      const membersWithStatus: MemberAttendanceStatus[] = namdanMembers.map((member) => ({
-        member,
-        attendanceId: attendanceMap.get(member.id) || null,
-        isPresent: attendanceMap.has(member.id),
-        isLoading: false,
-      }));
+      const membersWithStatus: MemberAttendanceStatus[] = namdanMembers.map((member) => {
+        const attendance = attendanceMap.get(member.id);
+        return {
+          member,
+          attendanceId: attendance?.id || null,
+          isPresent: attendance?.state === true,
+          state: attendance ? attendance.state : null,
+          isLoading: false,
+        };
+      });
 
       setMembers(membersWithStatus);
-      setFilteredMembers(membersWithStatus);
     } catch (error) {
-      notification.error('Failed to fetch namdan members');
-      console.error('Fetch error:', error);
+      notification.error('Failed to search members');
+      console.error('Search error:', error);
       setMembers([]);
-      setFilteredMembers([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleMarkPresent = async (index: number) => {
+  const handleMarkPresent = async (memberId: number) => {
     if (!selectedDate) {
       notification.error('Please select a date');
       return;
     }
 
-    const memberStatus = filteredMembers[index];
-    if (memberStatus.isPresent) {
-      notification.info('Member already marked present');
-      return;
-    }
+    const memberStatus = members.find(m => m.member.id === memberId);
+    if (!memberStatus) return;
 
-    // Find the actual index in the main members array
-    const actualIndex = members.findIndex(m => m.member.id === memberStatus.member.id);
-    
     // Update loading state
     setMembers((prev) =>
-      prev.map((m, i) => (i === actualIndex ? { ...m, isLoading: true } : m))
+      prev.map((m) => (m.member.id === memberId ? { ...m, isLoading: true } : m))
     );
 
     try {
@@ -160,72 +142,131 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
         )
       );
 
-      const attendanceRecord = {
-        id: crypto.randomUUID(),
-        member_id: memberStatus.member.id,
-        namdan_id: centre_id,
-        created_at: utcTargetDate.toISOString(),
-      };
+      if (memberStatus.attendanceId) {
+        // Update existing record
+        const { error } = await supabase
+          .from('namdan_attendance')
+          .update({ state: true })
+          .eq('id', memberStatus.attendanceId);
 
-      const { error } = await supabase.from('namdan_attendance').insert([attendanceRecord]);
+        if (error) throw error;
 
-      if (error) throw error;
+        // Update state to reflect present status
+        setMembers((prev) =>
+          prev.map((m) =>
+            m.member.id === memberId
+              ? { ...m, isPresent: true, state: true, isLoading: false }
+              : m
+          )
+        );
+      } else {
+        // Create new record
+        const attendanceRecord = {
+          id: crypto.randomUUID(),
+          member_id: memberStatus.member.id,
+          namdan_id: centre_id,
+          state: true,
+          created_at: utcTargetDate.toISOString(),
+        };
 
-      // Update state to reflect present status
-      setMembers((prev) =>
-        prev.map((m, i) =>
-          i === actualIndex
-            ? { ...m, attendanceId: attendanceRecord.id, isPresent: true, isLoading: false }
-            : m
-        )
-      );
+        const { error } = await supabase.from('namdan_attendance').insert([attendanceRecord]);
+
+        if (error) throw error;
+
+        // Update state to reflect present status
+        setMembers((prev) =>
+          prev.map((m) =>
+            m.member.id === memberId
+              ? { ...m, attendanceId: attendanceRecord.id, isPresent: true, state: true, isLoading: false }
+              : m
+          )
+        );
+      }
 
       notification.success(`Marked ${memberStatus.member.name} as present`);
     } catch (error) {
       notification.error('Failed to mark attendance');
       console.error('Mark present error:', error);
       setMembers((prev) =>
-        prev.map((m, i) => (i === actualIndex ? { ...m, isLoading: false } : m))
+        prev.map((m) => (m.member.id === memberId ? { ...m, isLoading: false } : m))
       );
     }
   };
 
-  const handleMarkAbsent = async (index: number) => {
-    const memberStatus = filteredMembers[index];
-    if (!memberStatus.isPresent || !memberStatus.attendanceId) {
-      notification.info('Member is already marked absent');
+  const handleMarkAbsent = async (memberId: number) => {
+    if (!selectedDate) {
+      notification.error('Please select a date');
       return;
     }
 
-    // Find the actual index in the main members array
-    const actualIndex = members.findIndex(m => m.member.id === memberStatus.member.id);
+    const memberStatus = members.find(m => m.member.id === memberId);
+    if (!memberStatus) return;
 
     // Update loading state
     setMembers((prev) =>
-      prev.map((m, i) => (i === actualIndex ? { ...m, isLoading: true } : m))
+      prev.map((m) => (m.member.id === memberId ? { ...m, isLoading: true } : m))
     );
 
     try {
-      const { error } = await supabase
-        .from('namdan_attendance')
-        .delete()
-        .eq('id', memberStatus.attendanceId);
-
-      if (error) throw error;
-
-      // Update state to reflect absent status
-      setMembers((prev) =>
-        prev.map((m, i) =>
-          i === actualIndex ? { ...m, attendanceId: null, isPresent: false, isLoading: false } : m
+      const targetDate = selectedDate;
+      const utcTargetDate = new Date(
+        Date.UTC(
+          targetDate.getFullYear(),
+          targetDate.getMonth(),
+          targetDate.getDate(),
+          new Date().getHours(),
+          new Date().getMinutes(),
+          new Date().getSeconds()
         )
       );
+
+      if (memberStatus.attendanceId) {
+        // Update existing record
+        const { error } = await supabase
+          .from('namdan_attendance')
+          .update({ state: false })
+          .eq('id', memberStatus.attendanceId);
+
+        if (error) throw error;
+
+        // Update state to reflect absent status
+        setMembers((prev) =>
+          prev.map((m) =>
+            m.member.id === memberId
+              ? { ...m, isPresent: false, state: false, isLoading: false }
+              : m
+          )
+        );
+      } else {
+        // Create new record with absent state
+        const attendanceRecord = {
+          id: crypto.randomUUID(),
+          member_id: memberStatus.member.id,
+          namdan_id: centre_id,
+          state: false,
+          created_at: utcTargetDate.toISOString(),
+        };
+
+        const { error } = await supabase.from('namdan_attendance').insert([attendanceRecord]);
+
+        if (error) throw error;
+
+        // Update state to reflect absent status
+        setMembers((prev) =>
+          prev.map((m) =>
+            m.member.id === memberId
+              ? { ...m, attendanceId: attendanceRecord.id, isPresent: false, state: false, isLoading: false }
+              : m
+          )
+        );
+      }
 
       notification.success(`Marked ${memberStatus.member.name} as absent`);
     } catch (error) {
       notification.error('Failed to mark absent');
       console.error('Mark absent error:', error);
       setMembers((prev) =>
-        prev.map((m, i) => (i === actualIndex ? { ...m, isLoading: false } : m))
+        prev.map((m) => (m.member.id === memberId ? { ...m, isLoading: false } : m))
       );
     }
   };
@@ -237,7 +278,7 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-foreground">Namdan Attendance</h2>
           <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
-            {members.filter((m) => m.isPresent).length} / {members.length} Present
+            {members.filter((m) => m.state === true).length} / {members.length} Present
           </Badge>
         </div>
 
@@ -256,15 +297,26 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name or mobile number..."
+              placeholder="Enter 10-digit mobile number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
+              maxLength={10}
             />
           </div>
-          {searchQuery && (
+          {searchQuery.length === 10 && /^\d{10}$/.test(searchQuery) && (
             <p className="text-xs text-muted-foreground mt-2">
-              Showing {filteredMembers.length} of {members.length} members
+              Showing {members.length} members for mobile: {searchQuery}
+            </p>
+          )}
+          {searchQuery.length > 0 && searchQuery.length < 10 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Enter {10 - searchQuery.length} more digits to search
+            </p>
+          )}
+          {searchQuery.length > 0 && !/^\d+$/.test(searchQuery) && (
+            <p className="text-xs text-red-500 mt-2">
+              Please enter only numbers
             </p>
           )}
         </div>
@@ -278,15 +330,21 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
             <p className="text-muted-foreground">Loading members...</p>
           </div>
         </div>
-      ) : members.length === 0 ? (
+      ) : members.length === 0 && searchQuery ? (
         <div className="text-center py-12">
           <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">No Namdan Members Found</h3>
-          <p className="text-muted-foreground">There are no members with type NAMDAN in the system.</p>
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Members Found</h3>
+          <p className="text-muted-foreground">No NAMDAN members found matching your search criteria.</p>
+        </div>
+      ) : !searchQuery || searchQuery.length !== 10 || !/^\d{10}$/.test(searchQuery) ? (
+        <div className="text-center py-12">
+          <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">Search Members</h3>
+          <p className="text-muted-foreground">Enter a complete 10-digit mobile number to search for NAMDAN members.</p>
         </div>
       ) : (
         <SmartTable
-          data={filteredMembers}
+          data={members}
           variant="static"
           loading={isLoading}
           idKey="member.id"
@@ -332,60 +390,108 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
               ),
             },
             {
-              key: 'isPresent',
+              key: 'state',
               header: 'Status',
               align: 'left',
-              render: (value, row: MemberAttendanceStatus) =>
-                row.isPresent ? (
-                  <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-                    Present
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">Absent</Badge>
-                ),
+              render: (value, row: MemberAttendanceStatus) => {
+                if (row.state === null) {
+                  return <Badge variant="outline">Not Marked</Badge>;
+                } else if (row.state === true) {
+                  return (
+                    <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                      Present
+                    </Badge>
+                  );
+                } else {
+                  return (
+                    <Badge variant="destructive" className="bg-red-500 hover:bg-red-600">
+                      Absent
+                    </Badge>
+                  );
+                }
+              },
             },
             {
               key: 'action',
               header: 'Action',
               align: 'center',
               render: (value, row: MemberAttendanceStatus) => {
-                const index = filteredMembers.findIndex(m => m.member.id === row.member.id);
                 return (
-                  <div className="flex items-center justify-center gap-2">
-                    {!row.isPresent ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleMarkPresent(index)}
-                        disabled={row.isLoading}
-                        className="bg-green-500 hover:bg-green-600 text-xs"
-                      >
-                        {row.isLoading ? (
-                          <>
-                            <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                            <span className="hidden sm:inline">Marking...</span>
-                          </>
-                        ) : (
-                          <span>Mark Present</span>
-                        )}
-                      </Button>
-                    ) : (
+                  <div className="flex items-center justify-center gap-1 flex-wrap">
+                    {row.state === true ? (
+                      // Currently present, show Mark Absent button
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => handleMarkAbsent(index)}
+                        onClick={() => handleMarkAbsent(row.member.id)}
                         disabled={row.isLoading}
-                        className="text-xs bg-red-500 hover:bg-red-600 text-white"
+                        className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 h-auto border-red-600"
                       >
                         {row.isLoading ? (
-                          <>
-                            <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                            <span className="hidden sm:inline">Marking...</span>
-                          </>
+                          <Loader2 className="w-3 h-3 animate-spin" />
                         ) : (
-                          <span>Mark Absent</span>
+                          <>
+                            <X className="w-3 h-3 mr-1" />
+                            <span className="sm:hidden">Absent</span>
+                            <span className="hidden sm:inline">Mark Absent</span>
+                          </>
                         )}
                       </Button>
+                    ) : row.state === false ? (
+                      // Currently absent, show Mark Present button
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleMarkPresent(row.member.id)}
+                        disabled={row.isLoading}
+                        className="bg-green-500 hover:bg-green-600 text-xs px-2 py-1 h-auto text-white border-green-600"
+                      >
+                        {row.isLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="w-3 h-3 mr-1" />
+                            <span className="sm:hidden">Present</span>
+                            <span className="hidden sm:inline">Mark Present</span>
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      // Not marked yet, show both buttons
+                      <>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleMarkPresent(row.member.id)}
+                          disabled={row.isLoading}
+                          className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 h-auto min-w-0 border-green-600"
+                        >
+                          {row.isLoading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <>
+                              <Check className="w-3 h-3 mr-1" />
+                              <span>Present</span>
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleMarkAbsent(row.member.id)}
+                          disabled={row.isLoading}
+                          className="text-xs px-2 py-1 h-auto min-w-0 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                        >
+                          {row.isLoading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <>
+                              <X className="w-3 h-3 mr-1" />
+                              <span>Absent</span>
+                            </>
+                          )}
+                        </Button>
+                      </>
                     )}
                   </div>
                 );
@@ -415,55 +521,100 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
               }
             ],
             footerRight: (row: MemberAttendanceStatus) => {
-              const index = filteredMembers.findIndex(m => m.member.id === row.member.id);
               return (
-                <div className="flex gap-2">
-                  {!row.isPresent ? (
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => handleMarkPresent(index)}
-                      disabled={row.isLoading}
-                      className="bg-green-500 hover:bg-green-600 text-xs"
-                    >
-                      {row.isLoading ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                          Marking...
-                        </>
-                      ) : (
-                        'Mark Present'
-                      )}
-                    </Button>
-                  ) : (
+                <div className="flex gap-1 flex-wrap">
+                  {row.state === true ? (
+                    // Currently present, show Mark Absent button
                     <Button
                       size="sm"
                       variant="secondary"
-                      onClick={() => handleMarkAbsent(index)}
+                      onClick={() => handleMarkAbsent(row.member.id)}
                       disabled={row.isLoading}
-                      className="text-xs bg-red-500 hover:bg-red-600 text-white"
+                      className="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 h-auto min-w-0 border-red-600"
                     >
                       {row.isLoading ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                          Marking...
-                        </>
+                        <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
-                        'Mark Absent'
+                        <>
+                          <X className="w-3 h-3 mr-1" />
+                          Absent
+                        </>
                       )}
                     </Button>
+                  ) : row.state === false ? (
+                    // Currently absent, show Mark Present button
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleMarkPresent(row.member.id)}
+                      disabled={row.isLoading}
+                      className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 h-auto min-w-0 border-green-600"
+                    >
+                      {row.isLoading ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Check className="w-3 h-3 mr-1" />
+                          Present
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    // Not marked yet, show both buttons
+                    <>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleMarkPresent(row.member.id)}
+                        disabled={row.isLoading}
+                        className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 h-auto min-w-0 flex-1 border-green-600"
+                      >
+                        {row.isLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="w-3 h-3 mr-1" />
+                            Present
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleMarkAbsent(row.member.id)}
+                        disabled={row.isLoading}
+                        className="text-xs px-2 py-1 h-auto min-w-0 flex-1 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                      >
+                        {row.isLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <X className="w-3 h-3 mr-1" />
+                            Absent
+                          </>
+                        )}
+                      </Button>
+                    </>
                   )}
                 </div>
               );
             },
             footerLeft: (row: MemberAttendanceStatus) => {
-              return row.isPresent ? (
-                <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-                  Present
-                </Badge>
-              ) : (
-                <Badge variant="secondary">Absent</Badge>
-              );
+              if (row.state === null) {
+                return <Badge variant="outline">Not Marked</Badge>;
+              } else if (row.state === true) {
+                return (
+                  <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                    Present
+                  </Badge>
+                );
+              } else {
+                return (
+                  <Badge variant="secondary" className="bg-red-500 hover:bg-red-600 text-white">
+                    Absent
+                  </Badge>
+                );
+              }
             },
           }}
         />
