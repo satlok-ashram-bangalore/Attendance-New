@@ -297,7 +297,7 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
               align: 'left',
               render: (value, row: MemberAttendanceStatus) => (
                 <div className="flex items-center space-x-2">
-                  <User className="w-4 h-4 text-primary flex-shrink-0" />
+                  <User className="w-4 h-4 text-primary shrink-0" />
                   <span className="text-sm font-medium text-foreground">{row.member.name}</span>
                 </div>
               ),
@@ -348,7 +348,7 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
               key: 'action',
               header: 'Action',
               align: 'center',
-              render: (value: any, row: MemberAttendanceStatus) => {
+              render: (row: MemberAttendanceStatus) => {
                 const index = filteredMembers.findIndex(m => m.member.id === row.member.id);
                 return (
                   <div className="flex items-center justify-center gap-2">
