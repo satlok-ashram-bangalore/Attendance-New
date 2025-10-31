@@ -28,11 +28,16 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const notification = useNotification();
 
-  // Generate date options (today and 3 days before)
+  // Generate date options (today and up to 3 days before, but not crossing month boundary)
   const getDateOptions = () => {
     const options = [];
     const today = new Date();
-    for (let i = 0; i < 4; i++) {
+    const todayDate = today.getDate();
+    
+    // Calculate how many days we can go back (max 3, but not crossing into previous month)
+    const maxDaysBack = Math.min(3, todayDate - 1);
+    
+    for (let i = 0; i <= maxDaysBack; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       options.push(date);
@@ -43,21 +48,7 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
   const dateOptions = getDateOptions();
 
   const formatDateButton = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const compareDate = new Date(date);
-    compareDate.setHours(0, 0, 0, 0);
-    
-    const diffTime = today.getTime() - compareDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      return 'Today';
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   const isDateSelected = (date: Date) => {
@@ -302,7 +293,7 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
   };
 
   return (
-    <div className="w-full mx-auto bg-card shadow-lg rounded-lg p-2 sm:p-4">
+    <div className="w-full mx-auto bg-card shadow-lg rounded-lg">
       {/* Header Section */}
       <div className="mb-4 sm:mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -317,7 +308,12 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
           <label className="text-sm font-medium text-foreground mb-2 block">
             Attendance Date <span className="text-destructive">*</span>
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className={`grid gap-2 ${
+            dateOptions.length === 1 ? 'grid-cols-1' :
+            dateOptions.length === 2 ? 'grid-cols-2' :
+            dateOptions.length === 3 ? 'grid-cols-3' :
+            'grid-cols-2 sm:grid-cols-4'
+          }`}>
             {dateOptions.map((date, index) => (
               <Button
                 key={index}
