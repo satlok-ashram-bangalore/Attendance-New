@@ -25,8 +25,48 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
   const [members, setMembers] = useState<MemberAttendanceStatus[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const notification = useNotification();
+
+  // Generate date options (today and 3 days before)
+  const getDateOptions = () => {
+    const options = [];
+    const today = new Date();
+    for (let i = 0; i < 4; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      options.push(date);
+    }
+    return options;
+  };
+
+  const dateOptions = getDateOptions();
+
+  const formatDateButton = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = today.getTime() - compareDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return 'Today';
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  };
+
+  const isDateSelected = (date: Date) => {
+    return (
+      selectedDate.getDate() === date.getDate() &&
+      selectedDate.getMonth() === date.getMonth() &&
+      selectedDate.getFullYear() === date.getFullYear()
+    );
+  };
 
   // Search members when query changes
   useEffect(() => {
@@ -38,7 +78,7 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
   }, [searchQuery, selectedDate]);
 
   const searchMembers = async () => {
-    if (!selectedDate || !searchQuery.trim()) return;
+    if (!searchQuery.trim()) return;
 
     try {
       setIsLoading(true);
@@ -116,11 +156,6 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
   };
 
   const handleMarkPresent = async (memberId: number) => {
-    if (!selectedDate) {
-      notification.error('Please select a date');
-      return;
-    }
-
     const memberStatus = members.find(m => m.member.id === memberId);
     if (!memberStatus) return;
 
@@ -194,11 +229,6 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
   };
 
   const handleMarkAbsent = async (memberId: number) => {
-    if (!selectedDate) {
-      notification.error('Please select a date');
-      return;
-    }
-
     const memberStatus = members.find(m => m.member.id === memberId);
     if (!memberStatus) return;
 
@@ -284,7 +314,30 @@ function NamdanAttendanceForm({ centre_id }: NamdanAttendanceFormProps) {
 
         {/* Date Selector */}
         <div className="bg-background border border-border rounded-lg p-3 sm:p-4 mb-3">
-          <DatePicker label="Attendance Date" value={selectedDate} onChange={setSelectedDate} required />
+          <label className="text-sm font-medium text-foreground mb-2 block">
+            Attendance Date <span className="text-destructive">*</span>
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {dateOptions.map((date, index) => (
+              <Button
+                key={index}
+                variant={isDateSelected(date) ? 'default' : 'outline'}
+                onClick={() => setSelectedDate(date)}
+                className={`w-full ${
+                  isDateSelected(date)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent'
+                }`}
+              >
+                <div className="flex flex-col items-center">
+                  <span className="text-xs font-semibold">{formatDateButton(date)}</span>
+                  <span className="text-xs opacity-75">
+                    {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                  </span>
+                </div>
+              </Button>
+            ))}
+          </div>
           {selectedDate && selectedDate.toDateString() !== new Date().toDateString() && (
             <Badge variant="secondary" className="text-xs mt-2">
               Past Date Selected
