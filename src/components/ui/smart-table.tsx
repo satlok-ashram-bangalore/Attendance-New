@@ -530,7 +530,7 @@ export function SmartTable<T = any>({
             onClick={scrollToTop}
             variant="default"
             size="icon"
-            className="fixed bottom-20 items-center  md:bottom-6 right-6 rounded-full shadow-lg z-10"
+            className="fixed bottom-6 items-center md:bottom-6 right-2 md:right-6 rounded-full shadow-lg z-10"
             icon={<ChevronUp className="w-5 h-5" />}
             aria-label="Go to top"
           />

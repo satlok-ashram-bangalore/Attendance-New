@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, CheckCircle, XCircle, Loader2, MapPin, User, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, MapPin, User, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useNotification } from '@/context/notification-context';
 import { Badge } from '@/components/ui/badge';
@@ -220,14 +220,6 @@ function RegularAttendanceForm({ access_id }: RegularAttendanceFormProps) {
     } finally {
       setSubmittingAttendance(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
   };
 
   if (loading) {

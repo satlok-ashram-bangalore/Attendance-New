@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase/client';
 import { useNotification } from '@/context/notification-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { SmartTable } from '@/components/ui/smart-table';
 import { IMemberInfoDb } from '@/features/member/types';

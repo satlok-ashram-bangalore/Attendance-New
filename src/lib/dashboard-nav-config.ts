@@ -1,9 +1,9 @@
 import React from "react"
-import { LayoutDashboard, Users, UserPlus, BarChart, Settings, UserCircle, FileText, CircleFadingPlus, HousePlus } from "lucide-react"
+import { LayoutDashboard, Users, UserPlus, UserCircle, FileText, CircleFadingPlus, HousePlus, UserCog, NotebookPen, Presentation, Notebook } from "lucide-react"
 
 export interface NavItem {
   title: string
-  href: string 
+  href: string
   icon: React.ComponentType<{ className?: string }>
   children?: NavItem[]
 }
@@ -11,12 +11,12 @@ export interface NavItem {
 const adminNavItems: NavItem[] = [
   {
     title: "Overview",
-    href: "/", 
+    href: "/",
     icon: LayoutDashboard,
   },
   {
     title: "Users",
-    href: "/user", 
+    href: "/user",
     icon: Users,
     children: [
       {
@@ -24,25 +24,39 @@ const adminNavItems: NavItem[] = [
         href: "/user/add",
         icon: UserPlus,
       },
-  
+
+      {
+        title: "View Users",
+        href: "/user/view",
+        icon: UserCog,
+      },
+
     ],
   },
   {
-    title: "Reports",
-    href: "/reports",
-    icon: BarChart,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
+    title: "Plans",
+    href: "/plan",
+    icon: Notebook,
+    children: [
+      {
+        title: "Add Plan",
+        href: "/plan/add",
+        icon: NotebookPen,
+      },
+
+      {
+        title: "View Plans",
+        href: "/plan/view",
+        icon: Presentation,
+      },
+    ],
+  }
 ]
 
 const authenticatedNavItems: NavItem[] = [
   {
     title: "My Dashboard",
-    href: "/", 
+    href: "/",
     icon: LayoutDashboard,
   },
   {
@@ -84,7 +98,7 @@ const authenticatedNavItems: NavItem[] = [
 const namdanUserNavItems: NavItem[] = [
   {
     title: "My Dashboard",
-    href: "/", 
+    href: "/",
     icon: LayoutDashboard,
   },
   {
@@ -128,6 +142,9 @@ const namdanUserNavItems: NavItem[] = [
   },
 ]
 
+// Archived users have no navigation items - read-only access
+const archivedNavItems: NavItem[] = []
+
 export function getNavItems(role: string): NavItem[] {
   if (role === "admin") {
     return adminNavItems
@@ -138,5 +155,8 @@ export function getNavItems(role: string): NavItem[] {
   if (role === "namdan_user") {
     return namdanUserNavItems
   }
-  return [] 
+  if (role === "archived") {
+    return archivedNavItems
+  }
+  return []
 }
