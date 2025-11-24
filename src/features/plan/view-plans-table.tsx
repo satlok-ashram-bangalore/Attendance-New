@@ -118,9 +118,7 @@ export function ViewPlansTable() {
       if (selectedTags.length > 0) {
         const tagFilters = selectedTags.map((tag) => tag.value);
         // Filter plans that contain any of the selected tags
-        query = query.or(
-          tagFilters.map((tag) => `tag.ilike.%${tag}%`).join(',')
-        );
+        query = query.or(tagFilters.map((tag) => `tag.ilike.%${tag}%`).join(','));
       }
 
       // Apply date range filters
@@ -147,7 +145,9 @@ export function ViewPlansTable() {
       setSearchTotal(count || 0);
       setSearchHasMore(to < (count || 0) - 1);
     } catch (error) {
-      notification.error(error instanceof SupabaseError ? error?.message : 'Failed to filter plans');
+      notification.error(
+        error instanceof SupabaseError ? error?.message : 'Failed to filter plans'
+      );
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -186,11 +186,11 @@ export function ViewPlansTable() {
   const formatDateRange = (from: string, to: string) => {
     const fromDate = new Date(from);
     const toDate = new Date(to);
-    
+
     if (from === to) {
       return fromDate.toLocaleDateString('en-GB');
     }
-    
+
     return `${fromDate.toLocaleDateString('en-GB')} - ${toDate.toLocaleDateString('en-GB')}`;
   };
 
@@ -205,7 +205,8 @@ export function ViewPlansTable() {
       await exportAttendanceToExcel(plan.id, plan.access.area, plan.planned_from);
       notification.success('Attendance data exported successfully');
     } catch (error) {
-      notification.error(error instanceof SupabaseError ? error?.message : 'Failed to export attendance data');
+        if (error instanceof Error || error instanceof SupabaseError)
+            notification.error(error?.message || 'Failed to export attendance data');
     } finally {
       setExportingPlanId(null);
     }
@@ -225,7 +226,7 @@ export function ViewPlansTable() {
       key: 'access',
       header: 'Location',
       widthClass: 'w-64',
-      render: (access:AccessLocation) => (
+      render: (access: AccessLocation) => (
         <div className="font-medium text-foreground">
           {access ? `${access.area}, ${access.taluk}, ${access.district}` : '—'}
         </div>
@@ -312,25 +313,13 @@ export function ViewPlansTable() {
                 />
               </div>
 
-              <DatePicker
-                label="From Date"
-                value={fromDate}
-                onChange={setFromDate}
-              />
+              <DatePicker label="From Date" value={fromDate} onChange={setFromDate} />
 
-              <DatePicker
-                label="To Date"
-                value={toDate}
-                onChange={setToDate}
-              />
+              <DatePicker label="To Date" value={toDate} onChange={setToDate} />
             </div>
 
             <div className="flex gap-2">
-              <Button
-                onClick={handleSearch}
-                disabled={loading}
-                className="flex items-center gap-2"
-              >
+              <Button onClick={handleSearch} disabled={loading} className="flex items-center gap-2">
                 <Search className="w-4 h-4" />
                 {isSearching ? 'Update Filter' : 'Search'}
               </Button>
@@ -370,7 +359,8 @@ export function ViewPlansTable() {
         columns={columns}
         idKey="id"
         mobileCard={{
-          header: (row: PlanData) => row.access ? `${row.access.area}, ${row.access.taluk}` : 'Unknown Location',
+          header: (row: PlanData) =>
+            row.access ? `${row.access.area}, ${row.access.taluk}` : 'Unknown Location',
           badge: (row: PlanData) => (
             <Badge variant="outline">{formatDateRange(row.planned_from, row.planned_to)}</Badge>
           ),
