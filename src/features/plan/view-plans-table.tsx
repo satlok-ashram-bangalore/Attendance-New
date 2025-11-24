@@ -243,7 +243,7 @@ export function ViewPlansTable() {
       key: 'planned_from',
       header: 'Date Range',
       widthClass: 'w-48',
-      render: (row: PlanData) => (
+      render: (_: string, row: PlanData) => (
         <div className="text-sm">{formatDateRange(row.planned_from, row.planned_to)}</div>
       ),
     },
@@ -271,7 +271,7 @@ export function ViewPlansTable() {
       key: 'actions',
       header: 'Actions',
       widthClass: 'w-32',
-      render: (row: PlanData) => (
+      render: (_: string, row: PlanData) => (
         <Button
           size="sm"
           variant="outline"
