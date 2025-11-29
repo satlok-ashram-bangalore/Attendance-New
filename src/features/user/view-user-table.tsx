@@ -307,6 +307,7 @@ export function ViewUserTable() {
         setSelectedCentreIds([]);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newRole]);
 
   const getRoleBadgeVariant = (role: string) => {

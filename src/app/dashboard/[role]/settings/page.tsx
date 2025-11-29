@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { api } from '@/lib/api-client';
+// import { api } from '@/lib/api-client';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useNotification } from '@/context/notification-context';
@@ -27,17 +27,17 @@ interface UserProfile {
 }
 
 export default function UserSettingsPage() {
-  const router = useRouter();
+  // const router = useRouter();
   const notification = useNotification();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Password change state
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [password, setPassword] = useState('');
+  // const [confirmPassword, setConfirmPassword] = useState('');
+  // const [passwordError, setPasswordError] = useState<string | null>(null);
+  // const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch user profile
   const fetchUserProfile = async () => {
@@ -70,56 +70,56 @@ export default function UserSettingsPage() {
   };
 
   // Handle password change
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // const handlePasswordChange = async (e: React.FormEvent) => {
+  //   e.preventDefault();
 
-    // Reset errors
-    setPasswordError(null);
+  //   // Reset errors
+  //   setPasswordError(null);
 
-    // Validate password
-    if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters long');
-      notification.error('Password must be at least 6 characters long');
-      return;
-    }
+  //   // Validate password
+  //   if (password.length < 6) {
+  //     setPasswordError('Password must be at least 6 characters long');
+  //     notification.error('Password must be at least 6 characters long');
+  //     return;
+  //   }
 
-    // Validate password confirmation
-    if (password !== confirmPassword) {
-      setPasswordError('Passwords do not match');
-      notification.error('Passwords do not match');
-      return;
-    }
+  //   // Validate password confirmation
+  //   if (password !== confirmPassword) {
+  //     setPasswordError('Passwords do not match');
+  //     notification.error('Passwords do not match');
+  //     return;
+  //   }
 
-    setIsSubmitting(true);
+  //   setIsSubmitting(true);
 
-    try {
-      const response = await api.update_password(password);
+  //   try {
+  //     const response = await api.update_password(password);
 
-      if (response.status === 200) {
-        notification.success('Password changed successfully! You will be logged out.');
+  //     if (response.status === 200) {
+  //       notification.success('Password changed successfully! You will be logged out.');
         
-        // Clear form
-        setPassword('');
-        setConfirmPassword('');
-        setPasswordError(null);
+  //       // Clear form
+  //       setPassword('');
+  //       setConfirmPassword('');
+  //       setPasswordError(null);
 
-        // Wait a moment for the user to see the success message
-        setTimeout(async () => {
-          // Sign out the user
-          await supabase.auth.signOut();
+  //       // Wait a moment for the user to see the success message
+  //       setTimeout(async () => {
+  //         // Sign out the user
+  //         await supabase.auth.signOut();
           
-          // Redirect to login page
-          router.push('/');
-        }, 2000);
-      }
-    } catch (err) {
-      console.error('Error changing password:', err);
-      setPasswordError('Failed to set password. Please try again.');
-      notification.error('Failed to set password. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  //         // Redirect to login page
+  //         router.push('/');
+  //       }, 2000);
+  //     }
+  //   } catch (err) {
+  //     console.error('Error changing password:', err);
+  //     setPasswordError('Failed to set password. Please try again.');
+  //     notification.error('Failed to set password. Please try again.');
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
 
   // Initial data fetch
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React from "react"
-import { LayoutDashboard, Users, UserPlus, UserCircle, FileText, CircleFadingPlus, HousePlus, UserCog, NotebookPen, Presentation, Notebook, House, ClipboardMinus } from "lucide-react"
+import { LayoutDashboard, Users, UserPlus, UserCircle, FileText, CircleFadingPlus, HousePlus, UserCog, NotebookPen, Presentation, Notebook, ClipboardMinus, SlidersHorizontal, MapPinned, School } from "lucide-react"
 
 export interface NavItem {
   title: string
@@ -54,18 +54,29 @@ const adminNavItems: NavItem[] = [
   {
     title: "Namdan",
     href: "/namdan",
-    icon: House,
+    icon: School,
     children: [
-      {
-        title: "Add Namdan",
-        href: "/namdan/add",
-        icon: HousePlus,
-      },
-
       {
         title: "View Namdan Attendance",
         href: "/namdan/view",
         icon: ClipboardMinus,
+      },
+    ],
+  },
+  {
+    title: "Configurations",
+    href: "/config",
+    icon: SlidersHorizontal,
+    children: [
+      {
+        title: "Access Controls",
+        href: "/config/access/control",
+        icon: MapPinned,
+      },
+      {
+        title: "Namdan Controls",
+        href: "/config/namdan/control",
+        icon: School,
       },
     ],
   }

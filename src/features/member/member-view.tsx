@@ -169,7 +169,7 @@ export function MemberView() {
       header: 'Actions',
       widthClass: 'w-32',
       align: 'center' as const,
-      render: (row: IMemberInfoDb) => (
+      render: (_value: unknown, row: IMemberInfoDb) => (
         <div className="flex gap-2 justify-center">
           <Button size="sm" variant="ghost" onClick={() => handleEdit(row)} className="h-8 w-8 p-0">
             <Edit className="h-4 w-4" />
