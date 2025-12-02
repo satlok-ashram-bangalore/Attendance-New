@@ -3,20 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useNotification } from '@/context/notification-context';
-import { Button } from '@/components/ui/button';
-import { Search, X, Download, Loader2 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { DatePicker } from '@/components/ui/date-picker';
 import { format } from 'date-fns';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import * as XLSX from 'xlsx';
-import { SmartTable } from '@/components/ui/smart-table';
+import { AttendanceFilters } from './components/attendance-filters';
+import { SummaryTable } from './components/summary-table';
+import { DetailedTable } from './components/detailed-table';
+import { AttendanceGraphs } from './components/attendance-graphs';
 
 interface NamdanCentre {
   centre_id: number;
@@ -71,10 +64,13 @@ export function ViewNamdanAttendance() {
   const [fromDate, setFromDate] = useState<Date | null>(null);
   const [toDate, setToDate] = useState<Date | null>(null);
   const [attendanceData, setAttendanceData] = useState<MemberAttendanceData[]>([]);
+  const [allDates, setAllDates] = useState<Date[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingCentres, setLoadingCentres] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'summary' | 'detailed' | 'graphs'>('summary');
+  const [graphView, setGraphView] = useState<'present' | 'absent' | 'not_filled'>('present');
 
   const notification = useNotification();
 
@@ -118,8 +114,29 @@ export function ViewNamdanAttendance() {
 
     setLoading(true);
     try {
-      const fromDateStr = format(fromDate, 'yyyy-MM-dd');
-      const toDateStr = format(toDate, 'yyyy-MM-dd');
+      // Create start and end timestamps in ISO format
+      const startOfDayUTC = new Date(
+        Date.UTC(
+          fromDate.getFullYear(),
+          fromDate.getMonth(),
+          fromDate.getDate(),
+          0,
+          0,
+          0,
+          0
+        )
+      );
+      const endOfDayUTC = new Date(
+        Date.UTC(
+          toDate.getFullYear(),
+          toDate.getMonth(),
+          toDate.getDate(),
+          23,
+          59,
+          59,
+          999
+        )
+      );
 
       // Fetch all members with type NAMDAN
       const { data: members, error: membersError } = await supabase
@@ -135,8 +152,8 @@ export function ViewNamdanAttendance() {
         .from('namdan_attendance')
         .select('member_id, state, created_at')
         .eq('namdan_id', parseInt(selectedCentre, 10))
-        .gte('created_at', `${fromDateStr} 00:00:00`)
-        .lte('created_at', `${toDateStr} 23:59:59`);
+        .gte('created_at', startOfDayUTC.toISOString())
+        .lte('created_at', endOfDayUTC.toISOString());
 
       if (attendanceError) throw attendanceError;
 
@@ -148,15 +165,16 @@ export function ViewNamdanAttendance() {
       });
 
       // Generate all dates in the range
-      const allDates: Date[] = [];
+      const dateRange: Date[] = [];
       const currentDate = new Date(fromDate);
       const endDate = new Date(toDate);
       while (currentDate <= endDate) {
-        allDates.push(new Date(currentDate));
+        dateRange.push(new Date(currentDate));
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      const totalDays = allDates.length;
+      setAllDates(dateRange);
+      const totalDays = dateRange.length;
 
       // Combine members with their attendance analytics
       const combinedData: MemberAttendanceData[] = (members || []).map((member) => {
@@ -170,7 +188,7 @@ export function ViewNamdanAttendance() {
         });
 
         // Build daily attendance
-        const dailyAttendance: DateAttendance[] = allDates.map((date) => {
+        const dailyAttendance: DateAttendance[] = dateRange.map((date) => {
           const dateStr = format(date, 'yyyy-MM-dd');
           const record = recordsByDate.get(dateStr);
           
@@ -190,8 +208,7 @@ export function ViewNamdanAttendance() {
         const presentDays = dailyAttendance.filter((d) => d.status === 'Present').length;
         const absentDays = dailyAttendance.filter((d) => d.status === 'Absent').length;
         const notFilledDays = dailyAttendance.filter((d) => d.status === 'Not Filled').length;
-        const filledDays = presentDays + absentDays;
-        const attendancePercentage = filledDays > 0 ? Math.round((presentDays / filledDays) * 100) : 0;
+        const attendancePercentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
 
         return {
           ...member,
@@ -218,7 +235,9 @@ export function ViewNamdanAttendance() {
     setFromDate(null);
     setToDate(null);
     setAttendanceData([]);
+    setAllDates([]);
     setHasSearched(false);
+    setActiveTab('summary');
   };
 
   const handleExportToExcel = () => {
@@ -233,7 +252,10 @@ export function ViewNamdanAttendance() {
         (c) => c.centre_id.toString() === selectedCentre
       );
 
-      const excelData = attendanceData.map((member) => ({
+      const workbook = XLSX.utils.book_new();
+
+      // Sheet 1: Summary Report
+      const summaryData = attendanceData.map((member) => ({
         'Name': member.name,
         'Mobile': member.mobile,
         'Village': member.village,
@@ -243,23 +265,60 @@ export function ViewNamdanAttendance() {
         'Present': member.present_days,
         'Absent': member.absent_days,
         'Not Filled': member.not_filled_days,
+        'Attendance %': member.attendance_percentage,
       }));
 
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance Report');
-
-      // Auto-size columns
+      const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+      
+      // Auto-size columns for summary
       const maxWidth = 50;
-      const columnWidths = Object.keys(excelData[0] || {}).map((key) => {
+      const summaryColumnWidths = Object.keys(summaryData[0] || {}).map((key) => {
         const maxLength = Math.max(
           key.length,
-          ...excelData.map((row) => String(row[key as keyof typeof row] || '').length)
+          ...summaryData.map((row) => String(row[key as keyof typeof row] || '').length)
         );
         return { wch: Math.min(maxLength + 2, maxWidth) };
       });
-      worksheet['!cols'] = columnWidths;
+      summaryWorksheet['!cols'] = summaryColumnWidths;
 
+      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary Report');
+
+      // Sheet 2: Final Report (Daily Attendance Matrix)
+      const finalReportData: Record<string, string | number>[] = [];
+      
+      attendanceData.forEach((member) => {
+        const row: Record<string, string | number> = {
+          'Name': member.name,
+          'Mobile': member.mobile,
+          'Village': member.village,
+          'District': member.district,
+        };
+
+        // Add each date as a column with P/A/NF
+        member.daily_attendance.forEach((attendance) => {
+          const status = attendance.status === 'Present' ? 'P' : 
+                        attendance.status === 'Absent' ? 'A' : 'NF';
+          row[attendance.date] = status;
+        });
+        
+        finalReportData.push(row);
+      });
+
+      const finalReportWorksheet = XLSX.utils.json_to_sheet(finalReportData);
+
+      // Auto-size columns for final report
+      const finalReportColumnWidths = Object.keys(finalReportData[0] || {}).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...finalReportData.map((row) => String(row[key as keyof typeof row] || '').length)
+        );
+        return { wch: Math.min(maxLength + 2, maxWidth) };
+      });
+      finalReportWorksheet['!cols'] = finalReportColumnWidths;
+
+      XLSX.utils.book_append_sheet(workbook, finalReportWorksheet, 'Final Report');
+
+      // Generate filename
       const fromDateStr = format(fromDate!, 'dd-MM-yyyy');
       const toDateStr = format(toDate!, 'dd-MM-yyyy');
       const centreName = selectedCentreData?.centre_name.replace(/[^a-zA-Z0-9]/g, '_') || 'Namdan';
@@ -274,183 +333,51 @@ export function ViewNamdanAttendance() {
     }
   };
 
-  const columns = [
-    {
-      key: 'name',
-      header: 'Name',
-      widthClass: 'w-48',
-      render: (_: string, row: MemberAttendanceData) => (
-        <div className="font-medium text-foreground">{row.name}</div>
-      ),
-    },
-    {
-      key: 'mobile',
-      header: 'Mobile',
-      widthClass: 'w-32',
-      render: (_: string, row: MemberAttendanceData) => (
-        <div className="text-sm">{row.mobile}</div>
-      ),
-    },
-    {
-      key: 'village',
-      header: 'Village',
-      widthClass: 'w-40',
-      render: (_: string, row: MemberAttendanceData) => (
-        <div className="text-sm">{row.village}</div>
-      ),
-    },
-    {
-      key: 'district',
-      header: 'District',
-      widthClass: 'w-32',
-      render: (_: string, row: MemberAttendanceData) => (
-        <div className="text-sm">{row.district}</div>
-      ),
-    },
-    {
-      key: 'present_days',
-      header: 'Present',
-      widthClass: 'w-24',
-      render: (_: string, row: MemberAttendanceData) => (
-        <div className="text-sm text-center">{row.present_days}</div>
-      ),
-    },
-    {
-      key: 'absent_days',
-      header: 'Absent',
-      widthClass: 'w-24',
-      render: (_: string, row: MemberAttendanceData) => (
-        <div className="text-sm text-center">{row.absent_days}</div>
-      ),
-    },
-    {
-      key: 'not_filled_days',
-      header: 'Not Filled',
-      widthClass: 'w-24',
-      render: (_: string, row: MemberAttendanceData) => (
-        <div className="text-sm text-center">{row.not_filled_days}</div>
-      ),
-    },
-  ];
-
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <Card className="border-0">
-        <CardContent className="px-4 md:px-4">
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Namdan Centre
-                </label>
-                <Select
-                  value={selectedCentre}
-                  onValueChange={setSelectedCentre}
-                  disabled={loadingCentres || loading}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={loadingCentres ? 'Loading centres...' : 'Select centre'}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {namdanCentres.map((centre) => (
-                      <SelectItem key={centre.centre_id} value={centre.centre_id.toString()}>
-                        {centre.centre_name} - {centre.area}, {centre.district}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <DatePicker label="From Date" value={fromDate} onChange={setFromDate} />
-
-              <DatePicker label="To Date" value={toDate} onChange={setToDate} />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={fetchAttendanceReport}
-                disabled={loading || loadingCentres}
-                className="flex items-center gap-2 flex-shrink-0"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="hidden sm:inline">Loading...</span>
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4" />
-                    <span className="hidden sm:inline">Generate Report</span>
-                    <span className="sm:hidden">Report</span>
-                  </>
-                )}
-              </Button>
-
-              {hasSearched && (
-                <>
-                  <Button
-                    onClick={handleClear}
-                    variant="outline"
-                    disabled={loading}
-                    className="flex items-center gap-2 flex-shrink-0"
-                  >
-                    <X className="w-4 h-4" />
-                    <span>Clear</span>
-                  </Button>
-
-                  <Button
-                    onClick={handleExportToExcel}
-                    variant="secondary"
-                    disabled={loading || exporting}
-                    className="flex items-center gap-2 flex-shrink-0"
-                  >
-                    {exporting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="hidden sm:inline">Exporting...</span>
-                        <span className="sm:hidden">Export</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" />
-                        <span className="hidden sm:inline">Export Excel</span>
-                        <span className="sm:hidden">Export</span>
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <AttendanceFilters
+        namdanCentres={namdanCentres}
+        selectedCentre={selectedCentre}
+        setSelectedCentre={setSelectedCentre}
+        fromDate={fromDate}
+        setFromDate={setFromDate}
+        toDate={toDate}
+        setToDate={setToDate}
+        loading={loading}
+        loadingCentres={loadingCentres}
+        hasSearched={hasSearched}
+        exporting={exporting}
+        onGenerateReport={fetchAttendanceReport}
+        onClear={handleClear}
+        onExport={handleExportToExcel}
+      />
 
       {/* Member Attendance Table */}
       {hasSearched && (
-        <SmartTable
-          data={attendanceData}
-          columns={columns}
-          defaultPageSize={20}
-          mobileCard={{
-            header: (row: MemberAttendanceData) => row.name,
-            subheader: (row: MemberAttendanceData) => (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground"> {row.mobile}</p>
-                <p className="text-xs text-muted-foreground"> {row.village}, {row.district}</p>
-              </div>
-            ),
-            footerLeft: (row: MemberAttendanceData) => (
-              <div className="flex gap-6 text-sm">
-                <span>P : {row.present_days}</span>
-                <span>A : {row.absent_days}</span>
-                <span>NF : {row.not_filled_days}</span>
-              </div>
-            ),
-          }}
-        />
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'summary' | 'detailed' | 'graphs')} >
+          <TabsList className="grid h-max px-2 py-1 w-full md:w-max md:gap-5 grid-cols-3 bg-card mb-4">
+            <TabsTrigger value="summary" className="text-xs h-10 sm:text-sm">Summary</TabsTrigger>
+            <TabsTrigger value="detailed" className="text-xs sm:text-sm">Final Report</TabsTrigger>
+            <TabsTrigger value="graphs" className="text-xs sm:text-sm">Graphs</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="summary" className="mt-0">
+            <SummaryTable data={attendanceData} />
+          </TabsContent>
+
+          <TabsContent value="detailed" className="mt-0">
+            <DetailedTable data={attendanceData} allDates={allDates} />
+          </TabsContent>
+
+          <TabsContent value="graphs" className="mt-0">
+            <AttendanceGraphs 
+              data={attendanceData} 
+              graphView={graphView} 
+              setGraphView={setGraphView} 
+            />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
