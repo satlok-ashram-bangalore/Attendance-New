@@ -9,9 +9,12 @@ interface DatePickerProps {
   value: Date | null
   onChange: (date: Date | null) => void
   required?: boolean
+  minDate?: Date | null
+  maxDate?: Date | null
+  allowFutureDates?: boolean
 }
 
-export function DatePicker({ label, value, onChange, required = false }: DatePickerProps) {
+export function DatePicker({ label, value, onChange, required = false, minDate = null, maxDate = null, allowFutureDates = false }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [openUpward, setOpenUpward] = useState(false)
@@ -107,10 +110,7 @@ export function DatePicker({ label, value, onChange, required = false }: DatePic
   }
 
   const selectDate = (date: Date) => {
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
-
-    if (date > today) {
+    if (isDateDisabled(date)) {
       return
     }
 
@@ -127,10 +127,36 @@ export function DatePicker({ label, value, onChange, required = false }: DatePic
     return value && date.toDateString() === value.toDateString()
   }
 
-  const isFutureDate = (date: Date) => {
+  const isDateDisabled = (date: Date) => {
     const today = new Date()
     today.setHours(23, 59, 59, 999)
-    return date > today
+    
+    // Check if future dates are not allowed
+    if (!allowFutureDates && date > today) {
+      return true
+    }
+    
+    // Check minDate constraint
+    if (minDate) {
+      const min = new Date(minDate)
+      min.setHours(0, 0, 0, 0)
+      const checkDate = new Date(date)
+      checkDate.setHours(0, 0, 0, 0)
+      if (checkDate < min) {
+        return true
+      }
+    }
+    
+    // Check maxDate constraint
+    if (maxDate) {
+      const max = new Date(maxDate)
+      max.setHours(23, 59, 59, 999)
+      if (date > max) {
+        return true
+      }
+    }
+    
+    return false
   }
 
   const clearDate = () => {
@@ -157,11 +183,11 @@ export function DatePicker({ label, value, onChange, required = false }: DatePic
           <span className={value ? "text-foreground" : "text-muted-foreground"}>
             {value ? formatDate(value) : "Select date"}
           </span>
-          <Calendar className="w-4 h-4 flex-shrink-0" />
+          <Calendar className="w-4 h-4 shrink-0" />
         </Button>
 
         {isOpen && (
-          <div className={`absolute bg-card border border-border rounded-lg shadow-lg z-50 p-3 w-72 max-w-[90vw] min-w-[280px] ${
+          <div className={`absolute bg-card border border-border rounded-lg shadow-lg z-50 p-3 w-72 max-w-[90vw] min-w-70 ${
             openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
           } ${
             openDirection === 'left' ? 'left-0' : 
@@ -205,11 +231,11 @@ export function DatePicker({ label, value, onChange, required = false }: DatePic
                     <Button
                       type="button"
                       onClick={() => selectDate(day)}
-                      disabled={isFutureDate(day)}
+                      disabled={isDateDisabled(day)}
                       variant="ghost"
                       size="sm"
                       className={`w-full h-full rounded text-sm transition-colors flex items-center justify-center p-0 ${
-                        isFutureDate(day)
+                        isDateDisabled(day)
                           ? "text-muted-foreground/50"
                           : isSelected(day)
                             ? "bg-primary text-primary-foreground hover:bg-primary/90"

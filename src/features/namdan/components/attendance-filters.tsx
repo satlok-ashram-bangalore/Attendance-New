@@ -82,16 +82,16 @@ export function AttendanceFilters({
               </Select>
             </div>
 
-            <DatePicker label="From Date" value={fromDate} onChange={setFromDate} />
+            <DatePicker label="From Date" value={fromDate} onChange={setFromDate} allowFutureDates  />
 
-            <DatePicker label="To Date" value={toDate} onChange={setToDate} />
+            <DatePicker label="To Date" value={toDate} onChange={setToDate} allowFutureDates minDate={fromDate}/>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={onGenerateReport}
               disabled={loading || loadingCentres}
-              className="flex items-center gap-2 flex-shrink-0"
+              className="flex items-center gap-2 shrink-0"
             >
               {loading ? (
                 <>
@@ -113,7 +113,7 @@ export function AttendanceFilters({
                   onClick={onClear}
                   variant="outline"
                   disabled={loading}
-                  className="flex items-center gap-2 flex-shrink-0"
+                  className="flex items-center gap-2 shrink-0"
                 >
                   <X className="w-4 h-4" />
                   <span>Clear</span>
@@ -123,7 +123,7 @@ export function AttendanceFilters({
                   onClick={onExport}
                   variant="secondary"
                   disabled={loading || exporting}
-                  className="flex items-center gap-2 flex-shrink-0"
+                  className="flex items-center gap-2 shrink-0"
                 >
                   {exporting ? (
                     <>

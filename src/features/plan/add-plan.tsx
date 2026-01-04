@@ -194,6 +194,7 @@ export function AddPlanForm() {
                         value={field.value || null}
                         onChange={(date) => field.onChange(date)}
                         required
+                        allowFutureDates
                       />
                     </FormControl>
                     <FormMessage />
@@ -212,6 +213,8 @@ export function AddPlanForm() {
                         value={field.value || null}
                         onChange={(date) => field.onChange(date)}
                         required
+                        allowFutureDates
+                        minDate={form.watch('planned_from')}
                       />
                     </FormControl>
                     <FormMessage />
