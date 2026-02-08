@@ -1,5 +1,5 @@
 import React from "react"
-import { LayoutDashboard, Users, UserPlus, UserCircle, FileText, CircleFadingPlus, HousePlus, UserCog, NotebookPen, Presentation, Notebook, ClipboardMinus, SlidersHorizontal, MapPinned, School } from "lucide-react"
+import { LayoutDashboard, Users, UserPlus, UserCircle, FileText, CircleFadingPlus, HousePlus, UserCog, NotebookPen, Presentation, Notebook, ClipboardMinus, SlidersHorizontal, MapPinned, School, ToggleLeft } from "lucide-react"
 
 export interface NavItem {
   title: string
@@ -56,6 +56,11 @@ const adminNavItems: NavItem[] = [
     href: "/namdan",
     icon: School,
     children: [
+      {
+        title: "Toggle Namdan Member",
+        href: "/namdan/toggle-member",
+        icon: ToggleLeft,
+      },
       {
         title: "View Namdan Attendance",
         href: "/namdan/view",
