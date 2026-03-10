@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Edit, Search, Loader2, X } from 'lucide-react';
+import { Edit, Search, Loader2, X, Award } from 'lucide-react';
 import { SmartTable, SmartTableHelpers } from '@/components/ui/smart-table';
 import { IMemberInfoDb } from './types';
+import { MemberSkillsDialog } from './member-skills-selector';
 import { useNotification } from '@/context/notification-context';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,10 @@ export function MemberView() {
   const [searchMobile, setSearchMobile] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<IMemberInfoDb[]>([]);
+  const [skillsDialog, setSkillsDialog] = useState<{ open: boolean; member: IMemberInfoDb | null }>({
+    open: false,
+    member: null,
+  });
   const itemsPerPage = 20;
 
   const { user } = useAuth();
@@ -171,7 +176,10 @@ export function MemberView() {
       align: 'center' as const,
       render: (_value: unknown, row: IMemberInfoDb) => (
         <div className="flex gap-2 justify-center">
-          <Button size="sm" variant="ghost" onClick={() => handleEdit(row)} className="h-8 w-8 p-0">
+          <Button size="sm" variant="ghost" onClick={() => setSkillsDialog({ open: true, member: row })} className="h-8 w-8 p-0" title="Manage Skills">
+            <Award className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => handleEdit(row)} className="h-8 w-8 p-0" title="Edit">
             <Edit className="h-4 w-4" />
           </Button>
         </div>
@@ -208,6 +216,10 @@ export function MemberView() {
     ),
     footerRight: (row: IMemberInfoDb) => (
       <div className="flex gap-2 justify-between">
+        <Button size="sm" variant="outline" onClick={() => setSkillsDialog({ open: true, member: row })} className="h-8">
+          <Award className="h-4 w-4 mr-1" />
+          Skills
+        </Button>
         <Button size="sm" variant="outline" onClick={() => handleEdit(row)} className="h-8">
           <Edit className="h-4 w-4 mr-1" />
           Edit
@@ -303,6 +315,16 @@ export function MemberView() {
         idKey="id"
         showGoToTop
       />
+
+      {/* Skills Dialog */}
+      {skillsDialog.member && (
+        <MemberSkillsDialog
+          memberId={skillsDialog.member.id}
+          memberName={skillsDialog.member.name}
+          open={skillsDialog.open}
+          onOpenChange={(open) => setSkillsDialog(prev => ({ ...prev, open }))}
+        />
+      )}
     </>
   );
 }

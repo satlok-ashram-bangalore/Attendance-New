@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Loader2, MapPin, User, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, MapPin, User, Clock, Award } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useNotification } from '@/context/notification-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { IMemberInfoDb } from '@/features/member/types';
+import { MemberSkillsDialog } from '@/features/member';
 
 interface Plan {
   id: number;
@@ -29,6 +30,10 @@ function RegularAttendanceForm({ access_id }: RegularAttendanceFormProps) {
   const [searchResults, setSearchResults] = useState<IMemberInfoDb[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<IMemberInfoDb[]>([]);
   const [submittingAttendance, setSubmittingAttendance] = useState(false);
+  const [skillsDialog, setSkillsDialog] = useState<{ open: boolean; member: IMemberInfoDb | null }>({
+    open: false,
+    member: null,
+  });
   const notification = useNotification();
 
   // Auto-search with debounce when mobile number is 10 digits
@@ -381,8 +386,22 @@ function RegularAttendanceForm({ access_id }: RegularAttendanceFormProps) {
                     )}
                   </div>
 
-                  <div className="text-xs text-muted-foreground">
-                    Age: {member.age} | Language: {member.first_language}
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      Age: {member.age} | Language: {member.first_language}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSkillsDialog({ open: true, member });
+                      }}
+                    >
+                      <Award className="w-3 h-3 mr-1" />
+                      Skills
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -450,6 +469,15 @@ function RegularAttendanceForm({ access_id }: RegularAttendanceFormProps) {
             </div>
           </div>
         </div>
+      )}
+      {/* Skills Dialog */}
+      {skillsDialog.member && (
+        <MemberSkillsDialog
+          memberId={skillsDialog.member.id}
+          memberName={skillsDialog.member.name}
+          open={skillsDialog.open}
+          onOpenChange={(open) => setSkillsDialog(prev => ({ ...prev, open }))}
+        />
       )}
     </div>
   );

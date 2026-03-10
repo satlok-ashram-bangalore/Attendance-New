@@ -251,7 +251,7 @@ function MemberEdit() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-6 relative">
       <div className="mb-6">
         <Button
           variant="ghost"

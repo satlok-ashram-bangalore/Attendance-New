@@ -31,19 +31,19 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
     switch (variant) {
       case 'danger':
         return {
-          icon: 'bg-red-100 text-red-600',
-          confirmButton: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
+          icon: 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400',
+          confirmButton: 'bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white focus:ring-red-500',
         };
       case 'warning':
         return {
-          icon: 'bg-amber-100 text-amber-600',
-          confirmButton: 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500',
+          icon: 'bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400',
+          confirmButton: 'bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-800 text-white focus:ring-amber-500',
         };
       case 'info':
       default:
         return {
-          icon: 'bg-[#3F8CFF]/10 text-[#3F8CFF]',
-          confirmButton: 'bg-[#3F8CFF] hover:bg-[#3F8CFF]/90 focus:ring-[#3F8CFF]',
+          icon: 'bg-primary/10 text-primary',
+          confirmButton: 'bg-primary hover:bg-primary/90 text-primary-foreground focus:ring-primary',
         };
     }
   };
@@ -52,10 +52,10 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
 
   return (
     <div className="fixed inset-0 z-95 flex items-center justify-center bg-black/70">
-      <div className="relative w-full max-w-md bg-white rounded-lg shadow-lg p-6 mx-4">
+      <div className="relative w-full max-w-md bg-card rounded-lg shadow-lg border border-border p-6 mx-4">
         <button
           onClick={onCancel}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors"
+          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Close"
         >
           <X size={20} />
@@ -83,8 +83,8 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-            <p className="mt-2 text-sm text-gray-500">{message}</p>
+            <h3 className="text-lg font-medium text-card-foreground">{title}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">{message}</p>
           </div>
         </div>
 
